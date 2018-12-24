@@ -1,0 +1,757 @@
+{% extends 'base_test.html' %}
+{% load i18n %}
+{% load app_filters %}
+{% block additional-headers %}
+    <link href='https://api.mapbox.com/mapbox-gl-js/v0.43.0/mapbox-gl.css' rel='stylesheet'/>
+    <head>
+        <title>
+            {% block title %} FAO {% endblock %}
+        </title>
+    </head>
+    <style>
+        .row {
+            margin: 10px;
+        }
+
+        .mapboxgl-popup {
+            max-width: 400px;
+            font: 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+        }
+
+        .rectangle_color {
+            vertical-align: middle;
+            display: inline-block;
+            width: 24px;
+            height: 22px;
+        }
+
+        .list-inline {
+            padding-left: 20;
+            list-style: none;
+        }
+
+
+    </style>
+
+{% endblock %}
+
+{% block content %}
+    <div class="portlet box red">
+    <div class="portlet-title">
+        <div class="caption"><i class="fa fa-adn"></i>Disease Incidence and Vaccination Area</div>
+    </div>
+    <div class="portlet-body">
+        <div class="row">
+            <ul class="nav nav-tabs">
+                <li class="active"><a href="#affected" data-toggle="tab">Affected</a></li>
+                <li class=""><a href="#mortality" data-toggle="tab">Mortality</a></li>
+            </ul>
+            <div class="tab-content">
+                <div id="affected" class="tab-pane fade in active">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div id='map_affected' style='width: 600px; height: 640px;'></div>
+                        </div>
+
+                        <div class="col-md-4" style="height: 5cm">
+                            <select id="division_affected" name="division" onchange="load_map_affected(this)"
+                                    class="form-control">
+                                <option value="">Select One</option>
+                                <option value="40">Khulna</option>
+                                <option value="20">Chittagong</option>
+                            </select>
+                            <br>
+                            <select id="district_affected" name="district" onchange="load_map_affected(this)"
+                                    class="form-control">
+                                <option value="">Select One</option>
+                            </select>
+                            <br>
+                            <select id="upazilla_affected" name="upazilla" onchange="load_map_affected(this)"
+                                    class="form-control">
+                                <option value="">Select One</option>
+                            </select>
+                        </div>
+                        <div id="color_generator_affected"></div>
+
+                    </div>
+
+                </div>
+                <div id="mortality" class="tab-pane fade">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div id='map_mortality' style='width: 600px; height: 640px;'></div>
+                        </div>
+
+                        <div class="col-md-4" style="height: 5cm">
+                            <select id="division_mortality" name="division" onchange="load_map_mortality(this)"
+                                    class="form-control">
+                                <option value="">Select One</option>
+                                <option value="40">Khulna</option>
+                                <option value="20">Chittagong</option>
+                            </select>
+                            <br>
+                            <select id="district_mortality" name="district" onchange="load_map_mortality(this)"
+                                    class="form-control">
+                                <option value="">Select One</option>
+                            </select>
+                            <br>
+                            <select id="upazilla_mortality" name="upazilla" onchange="load_map_mortality(this)"
+                                    class="form-control">
+                                <option value="">Select One</option>
+                            </select>
+                        </div>
+
+                        <div id="color_generator_mortality"></div>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block additional-javascript %}
+    <script src='https://api.mapbox.com/mapbox-gl-js/v0.43.0/mapbox-gl.js'></script>
+    <script>
+        var colors = [
+            '#00e7ab',
+            '#00d49d',
+            '#00c08e',
+            '#00ac7f',
+            '#009971',
+            '#008562',
+            '#007254',
+            '#005e45',
+            '#004a37',
+            '#003728'
+        ];
+
+
+        var color_generator_affected = "";
+        var color_generator_mortality = "";
+
+        var min_affected = {{ min_affected | safe }};
+        var max_affected = {{ max_affected | safe }};
+        var min_mortality = {{ min_mortality | safe }};
+        var max_mortality = {{ max_mortality | safe }};
+
+        var range_affected;
+        var range_mortality;
+
+        if (max_affected == min_affected)
+            range_affected = Math.ceil(max_affected / 10);
+        else range_affected = Math.ceil((max_affected - min_affected) / 10);
+        if (max_mortality == min_mortality)
+            range_mortality = Math.ceil(max_mortality / 10);
+        else range_mortality = Math.ceil((max_mortality - min_mortality) / 10);
+
+
+        if (range_affected < 2) {
+            color_generator_affected += "<div class=\"col-md-4\" style=\"padding-left: 2cm;padding-top: 2cm\"><fieldset><legend><b>Color Indication</b></legend><ul class=\"list-inline sidebar-tags\">";
+            var i = 0;
+            while (i < 10) {
+                color_generator_affected += "<p><li><div style=\"background:" + colors[i] + "\" class=\"rectangle_color\" ></div> &nbsp;" + min_affected + "</li></p>";
+                min_affected++;
+                i++;
+            }
+            color_generator_affected += "</ul></fieldset></div>";
+        }
+        else {
+            color_generator_affected += "<div class=\"col-md-4\" style=\"padding-left: 2cm;padding-top: 2cm\"><fieldset><legend><b>Color Indication</b></legend><ul class=\"list-inline sidebar-tags\">";
+            var i = 0;
+            while (i < 10) {
+                color_generator_affected += "<p><li><div style=\"background:" + colors[i] + "\" class=\"rectangle_color\" ></div> &nbsp;" + min_affected + "-" + (min_affected + range_affected - 1) + "</li></p>";
+                min_affected = min_affected + range_affected;
+                i++;
+            }
+            color_generator_affected += "</ul></fieldset></div>";
+        }
+
+
+        if (range_mortality < 2) {
+            color_generator_mortality += "<div class=\"col-md-4\" style=\"padding-left: 2cm;padding-top: 2cm\"><fieldset><legend><b>Color Indication</b></legend><ul class=\"list-inline sidebar-tags\">";
+            var i = 0;
+            while (i < 10) {
+                color_generator_mortality += "<p><li><div style=\"background:" + colors[i] + "\" class=\"rectangle_color\" ></div> &nbsp;" + min_mortality + "</li></p>";
+                min_mortality++;
+                i++;
+            }
+            color_generator_mortality += "</ul></fieldset></div>";
+        }
+        else {
+            color_generator_mortality += "<div class=\"col-md-4\" style=\"padding-left: 2cm;padding-top: 2cm\"><fieldset><legend>Color Indication</legend><ul class=\"list-inline sidebar-tags\">";
+            var i = 0;
+            while (i < 10) {
+                color_generator_mortality += "<p><li><div style=\"background:" + colors[i] + "\" class=\"rectangle_color\" ></div> &nbsp;" + min_mortality + "-" + (min_mortality + range_mortality - 1) + "</li></p>";
+                min_mortality = min_mortality + range_mortality;
+                i++;
+            }
+            color_generator_mortality += "</ul></fieldset></div>";
+        }
+
+
+        $('#color_generator_affected').html(color_generator_affected);
+        $('#color_generator_mortality').html(color_generator_mortality);
+
+
+        function color_case(count, range, min_val) {
+
+            var i = 0;
+            while (i < 10) {
+                if (count >= min_val && count <= min_val + range - 1)
+                    return colors[i];
+                i++;
+                min_val += range;
+
+            }
+        }
+
+
+        $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+            var target = $(e.target).attr("href")
+            // console.log(target);
+            map_affected.resize();
+            map_mortality.resize();
+        });
+        $('#district_affected').hide();
+        $('#upazilla_affected').hide();
+        $('#district_mortality').hide();
+        $('#upazilla_mortality').hide();
+
+
+        mapboxgl.accessToken = 'pk.eyJ1IjoianViYWlyNzAiLCJhIjoiY2o2YWUxZnFjMTBpcTMxbnk3bW9qaGhiYiJ9.Z4xUKQkyzrALVFRNNofvTQ';
+        var map_affected = new mapboxgl.Map({
+            container: 'map_affected',
+            style: 'mapbox://styles/mapbox/streets-v10',
+            center: [90.300, 23.853],
+            zoom: 5.7,
+
+        });
+
+        var map_mortality = new mapboxgl.Map({
+            container: 'map_mortality',
+            style: 'mapbox://styles/mapbox/streets-v10',
+            center: [90.300, 23.853],
+            zoom: 5.7
+        });
+
+        map_affected.addControl(new mapboxgl.NavigationControl());
+        map_mortality.addControl(new mapboxgl.NavigationControl());
+
+        var json_content_affected = {{ json_content_affected | safe }};
+        var map_data_affected = [];
+        for (each in json_content_affected) {
+            temp_map_data = json_content_affected[each];
+            for (each1 in temp_map_data) {
+                var test = JSON.parse(temp_map_data[each1])['features']
+                for (each1 in test)
+                    map_data_affected.push(test[each1]);
+            }
+        }
+
+        var json_content_mortality = {{ json_content_mortality | safe }};
+        var map_data_mortality = [];
+        for (each in json_content_mortality) {
+            temp_map_data = json_content_mortality[each];
+            for (each1 in temp_map_data) {
+                var test = JSON.parse(temp_map_data[each1])['features']
+                for (each1 in test)
+                    map_data_mortality.push(test[each1]);
+            }
+        }
+
+
+        function ajaxcall() {
+            $.ajaxSetup({
+                beforeSend: function (xhr, settings) {
+                    function getCookie(name) {
+                        var cookieValue = null;
+                        if (document.cookie && document.cookie != '') {
+                            var cookies = document.cookie.split(';');
+                            for (var i = 0; i < cookies.length; i++) {
+                                var cookie = jQuery.trim(cookies[i]);
+                                // Does this cookie string begin with the name we want?
+                                if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                    break;
+                                }
+                            }
+                        }
+                        return cookieValue;
+                    }
+
+                    if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+                        // Only send the token to relative URLs i.e. locally.
+                        xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+                    }
+                }
+            });
+        }
+
+
+        function flatten(result, a) {
+            if (typeof a === 'object' &&
+                a.length == 2
+                &&
+                typeof a[0] !== 'object'
+            ) {
+                result.push(a);
+                return;
+            }
+            for (each in a)
+                flatten(result, a[each]);
+        }
+
+        var layer_affected = [];
+        var layer_mortality = [];
+        var i = 0;
+
+        function map_plot_affected(map_label, plot_data, color, percentage) {
+
+
+            map_affected.addSource(map_label, {
+                type: 'geojson', data: {
+                    "type": "FeatureCollection",
+                    "features": plot_data
+                }
+            });
+            map_affected.addLayer({
+                "id": map_label,
+                "type": "fill",
+                "interactive": true,
+                "layout": {},
+                "source": map_label,
+                "paint": {
+                    "fill-color": color,
+                    "fill-opacity": 1
+
+                }
+            });
+
+
+            if ("unionname" in plot_data[0].properties) {
+                map_affected.addLayer({
+                    "id": map_label.concat(map_label),
+                    "type": "line",
+                    "source": map_label,
+                    "layout": {},
+                    "paint": {
+                        "line-color": "#831E00",
+                        "line-width": 3
+                    },
+                    "filter": ["==", "objectid", ""]
+                });
+            }
+            else {
+                map_affected.addLayer({
+                    "id": map_label.concat(map_label),
+                    "type": "line",
+                    "source": map_label,
+                    "layout": {},
+                    "paint": {
+                        "line-color": "#831E00",
+                        "line-width": 2
+                    },
+                    "filter": ["==", "OBJECTID", ""]
+                });
+            }
+
+
+
+            var popup = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: false
+            });
+
+            map_affected.on('mousemove', map_label, function (e) {
+
+                // Change the cursor style as a UI indicator.
+                map_affected.getCanvas().style.cursor = 'pointer';
+                // Populate the popup and set its coordinates
+                // based on the feature found.
+                if ("unionname" in plot_data[0].properties)
+                    popup.setLngLat(map_affected.unproject(e.point)).setHTML("<p><strong >Union Name </strong><strong style=\"padding-left:2.5em\">" + plot_data[0].properties.unionname + "</strong></p><p><strong >Count</strong><strong style=\"padding-left:5.7em\">" + percentage + "</strong></p>").addTo(map_affected);
+                else if ("Upazila" in plot_data[0].properties)
+                    popup.setLngLat(map_affected.unproject(e.point)).setHTML("<p><strong >Upazila Name </strong><strong style=\"padding-left:2em\">" + plot_data[0].properties.Upazila + "</strong></p><p><strong >Count</strong><strong style=\"padding-left:5.7em\">" + percentage + "</strong></p>").addTo(map_affected);
+                else if ("District" in plot_data[0].properties)
+                    popup.setLngLat(map_affected.unproject(e.point)).setHTML("<p><strong >District Name </strong><strong style=\"padding-left:2em\">" + plot_data[0].properties.District + "</strong></p><p><strong >Count</strong><strong style=\"padding-left:5.7em\">" + percentage + "</strong></p>").addTo(map_affected);
+                else if ("Division" in plot_data[0].properties)
+                    popup.setLngLat(map_affected.unproject(e.point)).setHTML("<p><strong >Division Name </strong><strong style=\"padding-left:1.5em\">" + plot_data[0].properties.Division + "</strong></p><p><strong >Count</strong><strong style=\"padding-left:5.7em\">" + percentage + "</strong></p>").addTo(map_affected);
+
+                // map_affected.featuresAt(e.point, {
+                // radius: 5,
+                // layers: ["states-fill"]
+                //     }, function (err, features) {
+                //         if (!err && features.length) {
+                //         map.setFilter("route-hover", ["==", "name", features[0].properties.name || ""]);
+                //         } else {
+                //         map.setFilter("route-hover", ["==", "name", ""]);
+                //      }
+                //     });
+                // console.log(e.features[0].properties);
+                if ("unionname" in plot_data[0].properties)
+                    map_affected.setFilter(map_label.concat(map_label), ["==", "objectid", e.features[0].properties.objectid]);
+                else map_affected.setFilter(map_label.concat(map_label), ["==", "OBJECTID", e.features[0].properties.OBJECTID]);
+                {#                style="color: #11b4da"#}
+            });
+
+            map_affected.on('mouseleave', map_label, function () {
+                map_affected.getCanvas().style.cursor = '';
+                if ("unionname" in plot_data[0].properties)
+                    map_affected.setFilter(map_label.concat(map_label), ["==", "objectid", ""]);
+                else map_affected.setFilter(map_label.concat(map_label), ["==", "OBJECTID", ""]);
+
+                popup.remove();
+            });
+
+
+            layer_affected.push(map_label);
+            // console.log("Layer Affected");
+            // console.log(layer_affected);
+        }
+
+        function map_plot_mortality(map_label, plot_data, color, percentage) {
+
+
+            map_mortality.addSource(map_label, {
+                type: 'geojson', data: {
+                    "type": "FeatureCollection",
+                    "features": plot_data
+                }
+                // ,
+                // tolerance: 3.75
+            });
+            map_mortality.addLayer({
+                "id": map_label,
+                "type": "fill",
+                "interactive": true,
+                "layout": {},
+                "source": map_label,
+                "paint": {
+                    "fill-color": color,
+                    "fill-opacity": 1
+                }
+            });
+
+            if ("unionname" in plot_data[0].properties) {
+                map_mortality.addLayer({
+                    "id": map_label.concat(map_label),
+                    "type": "line",
+                    "source": map_label,
+                    "layout": {},
+                    "paint": {
+                        "line-color": "#831E00",
+                        "line-width": 3
+                    },
+                    "filter": ["==", "objectid", ""]
+                });
+            }
+            else {
+                map_mortality.addLayer({
+                    "id": map_label.concat(map_label),
+                    "type": "line",
+                    "source": map_label,
+                    "layout": {},
+                    "paint": {
+                        "line-color": "#831E00",
+                        "line-width": 2
+                    },
+                    "filter": ["==", "OBJECTID", ""]
+                });
+            }
+
+            var popup = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: false
+            });
+
+            map_mortality.on('mousemove', map_label, function (e) {
+                // Change the cursor style as a UI indicator.
+                map_mortality.getCanvas().style.cursor = 'pointer';
+                // Populate the popup and set its coordinates
+                // based on the feature found.
+                if ("unionname" in plot_data[0].properties)
+                    popup.setLngLat(map_mortality.unproject(e.point)).setHTML("<p><strong >Union Name </strong><strong style=\"padding-left:2.5em\">" + plot_data[0].properties.unionname + "</strong></p><p><strong >Count</strong><strong style=\"padding-left:5.7em\">" + percentage + "</strong></p>").addTo(map_mortality);
+                else if ("Upazila" in plot_data[0].properties)
+                    popup.setLngLat(map_mortality.unproject(e.point)).setHTML("<p><strong >Upazila Name </strong><strong style=\"padding-left:2em\">" + plot_data[0].properties.Upazila + "</strong></p><p><strong >Count</strong><strong style=\"padding-left:5.7em\">" + percentage + "</strong></p>").addTo(map_mortality);
+                else if ("District" in plot_data[0].properties)
+                    popup.setLngLat(map_mortality.unproject(e.point)).setHTML("<p><strong >District Name </strong><strong style=\"padding-left:2em\">" + plot_data[0].properties.District + "</strong></p><p><strong >Count</strong><strong style=\"padding-left:5.7em\">" + percentage + "</strong></p>").addTo(map_mortality);
+                else if ("Division" in plot_data[0].properties)
+                    popup.setLngLat(map_mortality.unproject(e.point)).setHTML("<p><strong >Division Name </strong><strong style=\"padding-left:1.5em\">" + plot_data[0].properties.Division + "</strong></p><p><strong >Count</strong><strong style=\"padding-left:5.7em\">" + percentage + "</strong></p>").addTo(map_mortality);
+                if ("unionname" in plot_data[0].properties)
+                    map_mortality.setFilter(map_label.concat(map_label), ["==", "objectid", e.features[0].properties.objectid]);
+                else map_mortality.setFilter(map_label.concat(map_label), ["==", "OBJECTID", e.features[0].properties.OBJECTID]);
+                {#                style="color: #11b4da"#}
+            });
+
+            map_mortality.on('mouseleave', map_label, function () {
+                map_mortality.getCanvas().style.cursor = '';
+                if ("unionname" in plot_data[0].properties)
+                    map_mortality.setFilter(map_label.concat(map_label), ["==", "objectid", ""]);
+                else map_mortality.setFilter(map_label.concat(map_label), ["==", "OBJECTID", ""]);
+                popup.remove();
+            });
+
+            layer_mortality.push(map_label);
+            // console.log("Layer Mortality");
+            // console.log(layer_mortality);
+        }
+
+        map_affected.on('load', function () {
+            var percentage = {{ percentage_affected | safe }};
+
+            for (each in map_data_affected) {
+                map_plot_affected(map_data_affected[each].properties.OBJECTID.toString(), new Array(map_data_affected[each]), color_case(percentage[each], range_affected, min_affected - range_affected * 10), percentage[each])
+            }
+        });
+
+        map_mortality.on('load', function () {
+            var percentage = {{ percentage_mortality | safe }};
+            for (each in map_data_mortality) {
+                map_plot_mortality(map_data_mortality[each].properties.OBJECTID.toString(), new Array(map_data_mortality[each]), color_case(percentage[each], range_mortality, min_mortality - range_mortality * 10), percentage[each])
+            }
+        });
+
+        function load_map_affected(data) {
+
+            //removing all layer from map
+            for (each in layer_affected) {
+                map_affected.removeLayer(layer_affected[each]);
+                map_affected.removeSource(layer_affected[each]);
+            }
+            layer_affected = [];
+            var id = parseInt(data.value);
+            if (isNaN(id)) {
+
+                var value = $('#division_affected option:selected').val();
+
+                if (isNaN(parseFloat($('#division_affected option:selected').val()))) {
+                    map_affected.flyTo({center: [90.300, 23.853], zoom: 5.7});
+                    $('#district_affected').hide();
+                    $('#upazilla_affected').hide();
+                }
+                else if (isNaN(parseFloat($('#district_affected option:selected').val()))) {
+                    $('#upazilla_affected').hide();
+                }
+                return;
+            }
+            ajaxcall();
+            var loc_type;
+            if (id == 20 || id == 40)
+                loc_type = 2;
+            else if (id == 4055 || id == 2012)
+                loc_type = 3;
+            else if (id == 1233 || id == 5586)
+                loc_type = 4;
+
+
+            $.ajax({
+                url: '/fao_module/json_data_fetch_affect/',
+                type: 'POST',
+                dataType: 'json',
+                data: {'id': id, 'loc_type': loc_type},
+                success: function (result) {
+                    // console.log(result);
+                    var map_data = [];
+                    for (each in result.content) {
+                        temp_map_data = JSON.parse(result.content[each])
+                        for (each1 in temp_map_data['features']) {
+                            map_data.push(temp_map_data['features'][each1])
+                        }
+                    }
+                    var percentage = []
+                    {#                    for (each in result.percentage) {#}
+                    {#                        console.log(result.percentage[each]);#}
+                    {#                    }#}
+
+                    for (each in map_data) {
+                        if (!result.percentage[each])
+                            continue;
+                        if (loc_type == 4)
+                            map_plot_affected(map_data[each].properties.objectid.toString(), new Array(map_data[each]), color_case(result.percentage[each], range_affected, min_affected - range_affected * 10), result.percentage[each]);
+                        else
+                            map_plot_affected(map_data[each].properties.OBJECTID.toString(), new Array(map_data[each]), color_case(result.percentage[each], range_affected, min_affected - range_affected * 10), result.percentage[each]);
+                    }
+                    if (result.percentage.length > 0) {
+                        if (map_data.length) {
+                            var coordinates = []
+                            for (each in map_data)
+                                coordinates.push(map_data[each]['geometry']['coordinates']);
+                            var result = [];
+                            flatten(result, coordinates);
+                            var bounds = result.reduce(function (bounds, coord) {
+                                return bounds.extend(coord);
+                            }, new mapboxgl.LngLatBounds(result[0], result[0]));
+
+                            //if(bounds.length)
+                            map_affected.fitBounds(bounds);
+                        }
+                        else map_affected.flyTo({center: [90.300, 23.853], zoom: 5.7});
+                    }
+                    else map_affected.flyTo({center: [90.300, 23.853], zoom: 5.7});
+
+                }
+            });
+
+            if (loc_type == 2) {
+                div = parseInt(data.value);
+                $.ajax({
+                    url: '/fao_module/getDistricts/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'div': div},
+                    success: function (result) {
+                        var html_code = "<option value=\"\">Select One</option>";
+                        for (i = 0; i < result.length; i++) {
+                            if (result[i].value == 4055 || result[i].value == 2012)
+                                html_code += "<option value=\"" + result[i].value + "\"> " + result[i].name + "</option>";
+                        }
+                        $('#district_affected').html(html_code);
+                        $('#district_affected').show();
+                        $('#upazilla_affected').html("<option value=\"\">Select One</option>");
+                    }
+                });
+            }
+            else if (loc_type == 3) {
+                dist = parseInt(data.value);
+                $.ajax({
+                    url: '/fao_module/getUpazilas/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'dist': dist},
+                    success: function (result) {
+                        var html_code = "<option value=\"\">Select One</option>";
+                        for (i = 0; i < result.length; i++) {
+                            if (result[i].value == 1233 || result[i].value == 5586)
+                                html_code += "<option value=\"" + result[i].value + "\"> " + result[i].name + "</option>";
+                        }
+                        $('#upazilla_affected').html(html_code);
+                        $('#upazilla_affected').show();
+                    }
+                });
+            }
+
+        }
+
+
+        function load_map_mortality(data) {
+
+            //removing all layer from map
+            for (each in layer_mortality) {
+                map_mortality.removeLayer(layer_mortality[each]);
+                map_mortality.removeSource(layer_mortality[each]);
+            }
+            layer_mortality = [];
+            var id = parseInt(data.value);
+            if (isNaN(id)) {
+
+                var value = $('#division_mortality option:selected').val();
+
+                if (isNaN(parseFloat($('#division_mortality option:selected').val()))) {
+                    map_mortality.flyTo({center: [90.300, 23.853], zoom: 5.7});
+                    $('#district_mortality').hide();
+                    $('#upazilla_mortality').hide();
+                }
+                else if (isNaN(parseFloat($('#district_mortality option:selected').val()))) {
+                    $('#upazilla_mortality').hide();
+                }
+                return;
+            }
+            ajaxcall();
+            var loc_type;
+            if (id == 20 || id == 40)
+                loc_type = 2;
+            else if (id == 4055 || id == 2012)
+                loc_type = 3;
+            else if (id == 1233 || id == 5586)
+                loc_type = 4;
+
+            $.ajax({
+                url: '/fao_module/json_data_fetch_mortaility/',
+                type: 'POST',
+                dataType: 'json',
+                data: {'id': id, 'loc_type': loc_type},
+                success: function (result) {
+
+                    var map_data = [];
+                    for (each in result.content) {
+                        temp_map_data = JSON.parse(result.content[each])
+                        for (each1 in temp_map_data['features']) {
+                            map_data.push(temp_map_data['features'][each1])
+                        }
+                    }
+                    var percentage = []
+                    {#                    for (each in result.percentage) {#}
+                    {#                        console.log(result.percentage[each]);#}
+                    {#                    }#}
+
+                    for (each in map_data) {
+                        if (!result.percentage[each])
+                            continue;
+                        if (loc_type == 4)
+                            map_plot_mortality(map_data[each].properties.objectid.toString(), new Array(map_data[each]), color_case(result.percentage[each], range_mortality, min_mortality - range_mortality * 10), result.percentage[each]);
+                        else
+                            map_plot_mortality(map_data[each].properties.OBJECTID.toString(), new Array(map_data[each]), color_case(result.percentage[each], range_mortality, min_mortality - range_mortality * 10), result.percentage[each]);
+                    }
+                    if (result.percentage.length > 0) {
+                        if (map_data.length) {
+                            var coordinates = []
+                            for (each in map_data)
+                                coordinates.push(map_data[each]['geometry']['coordinates']);
+                            var result = [];
+                            flatten(result, coordinates);
+                            var bounds = result.reduce(function (bounds, coord) {
+                                return bounds.extend(coord);
+                            }, new mapboxgl.LngLatBounds(result[0], result[0]));
+                            // console.log(JSON.stringify(bounds));
+                            //if(bounds.length)
+                            map_mortality.fitBounds(bounds);
+                        }
+                        else map_mortality.flyTo({center: [90.300, 23.853], zoom: 5.7});
+                    }
+                    else map_mortality.flyTo({center: [90.300, 23.853], zoom: 5.7});
+
+                }
+            });
+
+            if (loc_type == 2) {
+                div = parseInt(data.value);
+                $.ajax({
+                    url: '/fao_module/getDistricts/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'div': div},
+                    success: function (result) {
+                        var html_code = "<option value=\"\">Select One</option>";
+                        for (i = 0; i < result.length; i++) {
+                            if (result[i].value == 4055 || result[i].value == 2012)
+                                html_code += "<option value=\"" + result[i].value + "\"> " + result[i].name + "</option>";
+                        }
+                        $('#district_mortality').html(html_code);
+                        $('#district_mortality').show();
+                        $('#upazilla_mortality').html("<option value=\"\">Select One</option>");
+                    }
+                });
+            }
+            else if (loc_type == 3) {
+                dist = parseInt(data.value);
+                $.ajax({
+                    url: '/fao_module/getUpazilas/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'dist': dist},
+                    success: function (result) {
+                        var html_code = "<option value=\"\">Select One</option>";
+                        for (i = 0; i < result.length; i++) {
+                            if (result[i].value == 1233 || result[i].value == 5586)
+                                html_code += "<option value=\"" + result[i].value + "\"> " + result[i].name + "</option>";
+                        }
+                        $('#upazilla_mortality').html(html_code);
+                        $('#upazilla_mortality').show();
+                    }
+                });
+            }
+
+        }
+    </script>
+{% endblock %}

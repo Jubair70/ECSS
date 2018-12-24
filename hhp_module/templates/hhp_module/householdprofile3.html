@@ -1,0 +1,316 @@
+{% extends 'base_test.html' %}
+{% load i18n %}
+{% load app_filters %}
+{% block additional-headers %}
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">
+    <link href="https://cdn.datatables.net/buttons/1.4.2/css/buttons.dataTables.min.css" rel="stylesheet">
+    <head>
+        <title>
+            {% block title %} UNICEF ECSS {% endblock %}
+        </title>
+    </head>
+    <style>
+        .row {
+            margin: 10px;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+    <div class="portlet box red">
+        <div class="portlet-title">
+            <div class="caption"><i class="fa fa-adn"></i>Household Profile 3</div>
+        </div>
+        <div class="portlet-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="control-label">Division</label>
+                        <select class="form-control" name="division_chart" id="division_chart"
+                                onchange="load_district_chart(this)">
+                            <option value="">ALL</option>
+                            {% for div_value,div_name in division %}
+                                <option value="{{ div_value }}">{{ div_name }}</option>
+                            {% endfor %}
+
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="control-label">District</label>
+                        <select class="form-control" name="district_chart" id="district_chart"
+                                onchange="load_users_chart(this)">
+                            <option value="">ALL</option>
+                        </select>
+                    </div>
+
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label class="control-label">Interviewer</label>
+                        <select class="form-control" name="interviewer" id="interviewer"
+                                onchange="load_individual_user_data(this)">
+                            <option value="">ALL</option>
+                        </select>
+                    </div>
+
+                </div>
+
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                     <div id="container" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block additional-javascript %}
+    <script src="http://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.2/js/dataTables.buttons.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.2/js/buttons.flash.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.32/pdfmake.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.32/vfs_fonts.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.2/js/buttons.html5.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.2/js/buttons.print.min.js"></script>
+
+    <script>
+
+        $('#district_chart').attr("disabled", true);
+        $('#interviewer').attr("disabled", true);
+
+
+        // charts
+        var categories = {{ categories |safe }};
+        var data = {{ data |safe }};
+        highcharts(categories, data);
+
+
+        function highcharts(categories, data) {
+            Highcharts.chart('container', {
+                chart: {
+
+                    type: 'line'
+                },
+                title: {
+                    text: 'HH Population by Age '
+                },
+                xAxis: {
+
+                    categories: categories,
+                    min: 0,
+                    max: Math.min(6, categories.length - 1)
+                },
+                yAxis: {
+                    title: {
+                        text: 'Percentage'
+                    }
+                },
+                legend: {
+                    enabled: false,
+                    layout: 'vertical',
+                    align: 'right',
+                    verticalAlign: 'middle'
+                },
+
+                plotOptions: {
+                    line: {
+                        dataLabels: {
+                            enabled: true
+                        }
+                    },
+                    series: {
+                        label: {
+                            enabled: false
+                        }
+                    }
+
+                },
+
+                series: [{name: "percentage", data: data}]
+                ,
+                scrollbar: {
+                    enabled: true,
+                    barBackgroundColor: 'gray',
+                    barBorderRadius: 7,
+                    barBorderWidth: 0,
+                    buttonBackgroundColor: 'gray',
+                    buttonBorderWidth: 0,
+                    buttonArrowColor: 'yellow',
+                    buttonBorderRadius: 7,
+                    rifleColor: 'yellow',
+                    trackBackgroundColor: 'white',
+                    trackBorderWidth: 1,
+                    trackBorderColor: 'silver',
+                    trackBorderRadius: 7
+                }
+                ,
+                exporting: {
+                    sourceWidth: 1200,
+                    sourceHeight: 400,
+                    chartOptions: {
+                        xAxis: {
+
+                            min: 0,
+                            max: categories.length - 1
+                        }
+
+                    }
+                }
+                , credits:
+                    {
+                        enabled: false
+                    }
+
+            });
+        }
+
+
+        function ajaxcall() {
+            $.ajaxSetup({
+                beforeSend: function (xhr, settings) {
+                    function getCookie(name) {
+                        var cookieValue = null;
+                        if (document.cookie && document.cookie != '') {
+                            var cookies = document.cookie.split(';');
+                            for (var i = 0; i < cookies.length; i++) {
+                                var cookie = jQuery.trim(cookies[i]);
+                                // Does this cookie string begin with the name we want?
+                                if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                    break;
+                                }
+                            }
+                        }
+                        return cookieValue;
+                    }
+
+                    if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+                        // Only send the token to relative URLs i.e. locally.
+                        xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+                    }
+                }
+            });
+        }
+
+
+        // functions for chart tab
+        function load_district_chart(div_object) {
+            ajaxcall();
+            div = parseInt(div_object.value);
+            if (isNaN(parseFloat(div))) {
+                $('#district_chart').html("<option value=\"\">ALL</option>");
+                $('#interviewer').html("<option value=\"\">ALL</option>");
+                $('#district_chart').attr("disabled", true);
+                $('#interviewer').attr("disabled", true);
+                var categories = {{ categories |safe }};
+                var data = {{ data |safe }};
+                highcharts(categories, data);
+            }
+            else {
+                $('#district_chart').attr("disabled", false);
+                $('#interviewer').html("<option value=\"\">ALL</option>");
+                $('#interviewer').attr("disabled", true);
+                $.ajax({
+                    url: '/hhp_module/getDistrictsChartsHP3/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'div': div},
+                    success: function (result) {
+                        var html_code = "<option value=\"\">ALL</option>";
+                        district_id_value = JSON.parse(result.district_id_value);
+                        for (i = 0; i < district_id_value.length; i++) {
+
+                            html_code += "<option value=\"" + district_id_value[i].dist_id + "\"> " + district_id_value[i].district + "</option>";
+                        }
+                        $('#district_chart').html(html_code);
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+                    }
+                });
+            }
+
+        }
+
+        function load_users_chart(dist_obj) {
+            ajaxcall();
+            dist = parseInt(dist_obj.value);
+            if (isNaN(parseFloat(dist))) {
+                $('#interviewer').html("<option value=\"\">ALL</option>");
+                $('#interviewer').attr("disabled", true);
+                $.ajax({
+                    url: '/hhp_module/getUsersChartsHP3/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'dist': dist, 'div': $('#division_chart').find(":selected").val()},
+                    success: function (result) {
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+
+                    }
+                });
+            }
+            else {
+                $('#interviewer').html("<option value=\"\">ALL</option>");
+                $('#interviewer').attr("disabled", false);
+                $.ajax({
+                    url: '/hhp_module/getUsersChartsHP3/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'dist': dist},
+                    success: function (result) {
+                        var html_code = "<option value=\"\">ALL</option>";
+                        user_data = JSON.parse(result.user_data);
+                        for (i = 0; i < user_data.length; i++) {
+
+                            html_code += "<option value=\"" + user_data[i].userid + "\"> " + user_data[i].username + "</option>";
+                        }
+                        $('#interviewer').html(html_code);
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+                    }
+                });
+            }
+        }
+
+
+        function load_individual_user_data(user_obj) {
+            ajaxcall();
+            user_id = parseInt(user_obj.value);
+            console.log(user_id);
+            if (isNaN(parseFloat(user_id))) {
+                $.ajax({
+                    url: '/hhp_module/getIndividualUsersDataHP3/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'user_id': user_id, 'dist': $('#district_chart').find(":selected").val()},
+                    success: function (result) {
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+
+                    }
+                });
+            }
+            else {
+                $.ajax({
+                    url: '/hhp_module/getIndividualUsersDataHP3/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'user_id': user_id},
+                    success: function (result) {
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+                    }
+                });
+            }
+        }
+    </script>
+{% endblock %}

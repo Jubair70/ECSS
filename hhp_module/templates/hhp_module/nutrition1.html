@@ -1,0 +1,550 @@
+{% extends 'base_test.html' %}
+{% load i18n %}
+{% load app_filters %}
+{% block additional-headers %}
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/jquery.dataTables.min.css">
+    <link href="https://cdn.datatables.net/buttons/1.4.2/css/buttons.dataTables.min.css" rel="stylesheet">
+    <head>
+        <title>
+            {% block title %} UNICEF ECSS {% endblock %}
+        </title>
+    </head>
+    <style>
+        .row {
+            margin: 10px;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+    <div class="portlet box red">
+    <div class="portlet-title">
+        <div class="caption"><i class="fa fa-adn"></i>Nutrition 1</div>
+    </div>
+    <div class="portlet-body">
+        <div class="row">
+            <ul class="nav nav-tabs">
+                <li class="active"><a href="#table" data-toggle="tab">Table</a></li>
+                <li class=""><a href="#chart" data-toggle="tab">Chart</a></li>
+            </ul>
+            <div class="tab-content">
+                <div id="table" class="tab-pane fade  in active">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">Division</label>
+                                <select class="form-control" name="division" id="division"
+                                        onchange="load_district(this)">
+                                    <option value="">ALL</option>
+                                    {% for div_value,div_name in division %}
+                                        <option value="{{ div_value }}">{{ div_name }}</option>
+                                    {% endfor %}
+
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">District</label>
+                                <select class="form-control" name="district" id="district" onchange="load_users(this)">
+                                    <option value="">ALL</option>
+                                </select>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <table id="all_info_table" class="table table-bordered ">
+                        <thead class="flip-content">
+                        <tr>
+                            <th class="td-center">Name</th>
+                            <th class="td-center"># of women who gave birth within last 6 months</th>
+                            <th class="td-center"># of HH with women who gave birth within last 6 months</th>
+                            <th class="td-center"># of women who gave birth within last 6 months per HH</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+
+                </div>
+                <div id="chart" class="tab-pane fade">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">Division</label>
+                                <select class="form-control" name="division_chart" id="division_chart"
+                                        onchange="load_district_chart(this)">
+                                    <option value="">ALL</option>
+                                    {% for div_value,div_name in division %}
+                                        <option value="{{ div_value }}">{{ div_name }}</option>
+                                    {% endfor %}
+
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">District</label>
+                                <select class="form-control" name="district_chart" id="district_chart"
+                                        onchange="load_users_chart(this)">
+                                    <option value="">ALL</option>
+                                </select>
+                            </div>
+
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label class="control-label">Interviewer</label>
+                                <select class="form-control" name="interviewer" id="interviewer"
+                                        onchange="load_individual_user_data(this)">
+                                    <option value="">ALL</option>
+                                </select>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div id="container" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+{% block additional-javascript %}
+    <script src="http://code.highcharts.com/stock/highstock.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.2/js/dataTables.buttons.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.2/js/buttons.flash.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.32/pdfmake.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.32/vfs_fonts.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.2/js/buttons.html5.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/buttons/1.4.2/js/buttons.print.min.js"></script>
+
+    <script>
+
+        $('#district').attr("disabled", true);
+        $('#district_chart').attr("disabled", true);
+        $('#interviewer').attr("disabled", true);
+
+
+        var tbody = '';
+        var divison_data = {{ divison_data|safe }};
+        var total_women ={{ total_women| safe }};
+        var total_hh = {{ total_hh | safe }};
+        var total_ratio = {{ total_ratio | safe }};
+        tbody += '<tr><td class=\"td-center\" >Total</td><td class="td-center">' + total_women + '</td><td class="td-center">' + total_hh + '</td><td class="td-center" >' + total_ratio.toFixed(2) + ' </td></tr>';
+        for (var idx in divison_data) {
+            tbody += '<tr><td class=\"td-center\" >' + divison_data[idx].division + '</td><td class="td-center">' + divison_data[idx].total_women + '</td><td class="td-center">' + divison_data[idx].total_hh + '</td><td class="td-center" >' + divison_data[idx].ratio + ' </td></tr>';
+        }
+
+        $("#all_info_table").find('tbody').html(tbody);
+        var table = $('#all_info_table').DataTable({
+            "scrollX": true, "ordering": false,
+            deferRender: true,
+            dom: 'Bfrtip',
+            buttons: [
+                {
+                    filename: "Nutrition - Table 1",
+                    title: "",
+                    text: "<strong>Export</strong>",
+                    extend: 'excel'
+                }
+            ]
+
+        });
+
+        $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+            table.columns.adjust().draw();
+
+        });
+
+        $("#division, #district").change(function () {
+            table.destroy();
+        });
+
+
+        // charts
+        var categories = {{ categories |safe }};
+        var data = {{ data |safe }};
+        highcharts(categories, data);
+
+        function add(a, b) {
+            return a + b;
+        }
+
+        function highcharts(categories, data) {
+
+            if (data.length) {
+                var sum = data.reduce(add, 0);
+                var max = data.reduce(function (a, b) {
+                    return Math.max(a, b);
+                });
+            }
+            else {
+                var sum = 0;
+                var max = 0;
+            }
+
+            Highcharts.chart('container', {
+                chart: {
+
+                    type: 'line'
+                },
+                title: {
+                        text: '<strong>Nutrition - Chart 1</strong><br><strong># of women who gave birth within last 6 months per HH by day</strong>'
+                },
+                xAxis: {
+
+                    categories: categories,
+                    min: 0,
+                    max: Math.min(5, categories.length - 1)
+
+                },
+                yAxis: {
+                    title: {
+                        text: 'Ratio'
+                    }
+                },
+                legend: {
+                    enabled: false,
+                    layout: 'vertical',
+                    align: 'right',
+                    verticalAlign: 'middle'
+                },
+
+                plotOptions: {
+                    line: {
+                        dataLabels: {
+                            enabled: true
+                        }
+                    },
+                    series: {
+                        label: {
+                            enabled: false
+                        }
+                    }
+
+                },
+
+                series: [{name: "Ratio", data: data}]
+                ,
+                scrollbar: {
+                    enabled: true,
+                    barBackgroundColor: 'gray',
+                    barBorderRadius: 7,
+                    barBorderWidth: 0,
+                    buttonBackgroundColor: 'gray',
+                    buttonBorderWidth: 0,
+                    buttonArrowColor: 'yellow',
+                    buttonBorderRadius: 7,
+                    rifleColor: 'yellow',
+                    trackBackgroundColor: 'white',
+                    trackBorderWidth: 1,
+                    trackBorderColor: 'silver',
+                    trackBorderRadius: 7
+                }
+                ,
+                exporting: {
+                    filename:"Nutrition - Chart 1",
+                    sourceWidth: Math.max(1200, 120 * categories.length),
+                    sourceHeight: Math.max(400, max * 50),
+                    chartOptions: {
+                        xAxis: [{
+                            categories: categories,
+                            min: 0,
+                            max: categories.length - 1
+                        }],
+                        scrollbar: {
+                            enabled: false
+                        }
+
+                    }
+
+                }
+                , credits:
+                    {
+                        enabled: false
+                    }
+            });
+        }
+
+
+        function ajaxcall() {
+            $.ajaxSetup({
+                beforeSend: function (xhr, settings) {
+                    function getCookie(name) {
+                        var cookieValue = null;
+                        if (document.cookie && document.cookie != '') {
+                            var cookies = document.cookie.split(';');
+                            for (var i = 0; i < cookies.length; i++) {
+                                var cookie = jQuery.trim(cookies[i]);
+                                // Does this cookie string begin with the name we want?
+                                if (cookie.substring(0, name.length + 1) == (name + '=')) {
+                                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                    break;
+                                }
+                            }
+                        }
+                        return cookieValue;
+                    }
+
+                    if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+                        // Only send the token to relative URLs i.e. locally.
+                        xhr.setRequestHeader("X-CSRFToken", getCookie('csrftoken'));
+                    }
+                }
+            });
+        }
+
+        function datatable_reitialize() {
+            return $('#all_info_table').DataTable({
+                "scrollX": true, "ordering": false,
+                deferRender: true,
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        filename: "Nutrition - Table 1",
+                        title: "",
+                        text: "<strong>Export</strong>",
+                        extend: 'excel'
+                    }
+                ]
+
+            });
+        }
+
+        // functions for table tab
+        function load_district(div_object) {
+            ajaxcall();
+            div = parseInt(div_object.value);
+            if (isNaN(parseFloat(div))) {
+                $('#district').html("<option value=\"\">ALL</option>");
+                $('#district').attr("disabled", true);
+                $.ajax({
+                    url: '/hhp_module/getDistrictsNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'div': div},
+                    {#                    beforeSend: function () {#}
+                    {#                        $("#all_info_table").html('<div class="alert alert-success">Please Wait...loading....</div>');#}
+                    {#                    },#}
+                    success: function (result) {
+                        var tbody = '';
+                        var divison_data = JSON.parse(result.divison_data);
+                        var total_children = result.total_children;
+                        var total_hh = result.total_hh;
+                        var total_ratio = result.total_ratio;
+                        tbody += '<tr><td class=\"td-center\" >Total</td><td class="td-center">' + total_women + '</td><td class="td-center">' + total_hh + '</td><td class="td-center" >' + total_ratio.toFixed(2) + ' </td></tr>';
+                        for (var idx in divison_data) {
+                            tbody += '<tr><td class=\"td-center\" >' + divison_data[idx].division + '</td><td class="td-center">' + divison_data[idx].total_women + '</td><td class="td-center">' + divison_data[idx].total_hh + '</td><td class="td-center" >' + divison_data[idx].ratio + '</td></tr>';
+                        }
+
+                        $("#all_info_table").find('tbody').html(tbody);
+                        table = datatable_reitialize();
+                    }
+                });
+
+
+            }
+            else {
+                $('#district').attr("disabled", false);
+                $.ajax({
+                    url: '/hhp_module/getDistrictsNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'div': div},
+                    {#                    beforeSend: function () {#}
+                    {#                        $("#all_info_table").html('<div class="alert alert-success">Please Wait...loading....</div>');#}
+                    {#                    },#}
+                    success: function (result) {
+                        var html_code = "<option value=\"\">ALL</option>";
+                        district_id_value = JSON.parse(result.district_id_value);
+                        for (i = 0; i < district_id_value.length; i++) {
+                            html_code += "<option value=\"" + district_id_value[i].dist_id + "\"> " + district_id_value[i].district + "</option>";
+                        }
+                        $('#district').html(html_code);
+                        var tbody = '';
+                        var district_data = JSON.parse(result.district_data);
+                        var total_women = result.total_women;
+                        var total_hh = result.total_hh;
+                        var total_ratio = result.total_ratio;
+                        tbody += '<tr><td class=\"td-center\" >Division-wise Total</td><td class="td-center">' + total_women + '</td><td class="td-center">' + total_hh + '</td><td class="td-center" >' + total_ratio.toFixed(2) + ' </td></tr>';
+                        for (var idx in district_data) {
+                            tbody += '<tr><td class=\"td-center\" >' + district_data[idx].district + '</td><td class="td-center">' + district_data[idx].total_women + '</td><td class="td-center">' + district_data[idx].total_hh + '</td><td class="td-center" >' + district_data[idx].ratio + '</td></tr>';
+                        }
+
+                        $("#all_info_table").find('tbody').html(tbody);
+                        table = datatable_reitialize();
+                    }
+                });
+            }
+
+        }
+
+        function load_users(dist_obj) {
+            ajaxcall();
+            dist = parseInt(dist_obj.value);
+            if (isNaN(parseFloat(dist))) {
+                $.ajax({
+                    url: '/hhp_module/getUsersNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'dist': dist, 'div': $('#division').find(":selected").val()},
+                    success: function (result) {
+                        var tbody = '';
+                        var district_data = JSON.parse(result.district_data);
+                        var total_women = result.total_women;
+                        var total_hh = result.total_hh;
+                        var total_ratio = result.total_ratio;
+                        tbody += '<tr><td class=\"td-center\" >Division-wise Total</td><td class="td-center">' + total_women + '</td><td class="td-center">' + total_hh + '</td><td class="td-center" >' + total_ratio.toFixed(2) + ' </td></tr>';
+                        for (var idx in district_data) {
+                            tbody += '<tr><td class=\"td-center\" >' + district_data[idx].district + '</td><td class="td-center">' + district_data[idx].total_women + '</td><td class="td-center">' + district_data[idx].total_hh + '</td><td class="td-center" >' + district_data[idx].ratio + ' </td></tr>';
+                        }
+                        $("#all_info_table").find('tbody').html(tbody);
+                        table = datatable_reitialize();
+                    }
+                });
+            }
+            else {
+                $.ajax({
+                    url: '/hhp_module/getUsersNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'dist': dist},
+                    success: function (result) {
+                        var tbody = '';
+                        var user_data = JSON.parse(result.user_data);
+                        var total_women = result.total_women;
+                        var total_hh = result.total_hh;
+                        var total_ratio = result.total_ratio;
+                        tbody += '<tr><td class=\"td-center\" >District-wise Total</td><td class="td-center">' + total_women + '</td><td class="td-center">' + total_hh + '</td><td class="td-center" >' + total_ratio.toFixed(2) + ' </td></tr>';
+                        for (var idx in user_data) {
+                            tbody += '<tr><td class=\"td-center\" >' + user_data[idx].username + '</td><td class="td-center">' + user_data[idx].total_women + '</td><td class="td-center">' + user_data[idx].total_hh + '</td><td class="td-center" >' + user_data[idx].ratio + ' </td></tr>';
+                        }
+                        $("#all_info_table").find('tbody').html(tbody);
+                        table = datatable_reitialize();
+                    }
+                });
+            }
+
+        }
+
+
+        // functions for chart tab
+        function load_district_chart(div_object) {
+            ajaxcall();
+            div = parseInt(div_object.value);
+            if (isNaN(parseFloat(div))) {
+                $('#district_chart').html("<option value=\"\">ALL</option>");
+                $('#interviewer').html("<option value=\"\">ALL</option>");
+                $('#district_chart').attr("disabled", true);
+                $('#interviewer').attr("disabled", true);
+                var categories = {{ categories |safe }};
+                var data = {{ data |safe }};
+                highcharts(categories, data);
+            }
+            else {
+                $('#district_chart').attr("disabled", false);
+                $('#interviewer').html("<option value=\"\">ALL</option>");
+                $('#interviewer').attr("disabled", true);
+                $.ajax({
+                    url: '/hhp_module/getDistrictsChartsNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'div': div},
+                    success: function (result) {
+                        var html_code = "<option value=\"\">ALL</option>";
+                        district_id_value = JSON.parse(result.district_id_value);
+                        for (i = 0; i < district_id_value.length; i++) {
+
+                            html_code += "<option value=\"" + district_id_value[i].dist_id + "\"> " + district_id_value[i].district + "</option>";
+                        }
+                        $('#district_chart').html(html_code);
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+                    }
+                });
+            }
+
+        }
+
+        function load_users_chart(dist_obj) {
+            ajaxcall();
+            dist = parseInt(dist_obj.value);
+            if (isNaN(parseFloat(dist))) {
+                $('#interviewer').html("<option value=\"\">ALL</option>");
+                $('#interviewer').attr("disabled", true);
+                $.ajax({
+                    url: '/hhp_module/getUsersChartsNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'dist': dist, 'div': $('#division_chart').find(":selected").val()},
+                    success: function (result) {
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+
+                    }
+                });
+            }
+            else {
+                $('#interviewer').html("<option value=\"\">ALL</option>");
+                $('#interviewer').attr("disabled", false);
+                $.ajax({
+                    url: '/hhp_module/getUsersChartsNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'dist': dist},
+                    success: function (result) {
+                        var html_code = "<option value=\"\">ALL</option>";
+                        user_data = JSON.parse(result.user_data);
+                        for (i = 0; i < user_data.length; i++) {
+
+                            html_code += "<option value=\"" + user_data[i].userid + "\"> " + user_data[i].username + "</option>";
+                        }
+                        $('#interviewer').html(html_code);
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+                    }
+                });
+            }
+        }
+
+
+        function load_individual_user_data(user_obj) {
+            ajaxcall();
+            user_id = parseInt(user_obj.value);
+            console.log(user_id);
+            if (isNaN(parseFloat(user_id))) {
+                $.ajax({
+                    url: '/hhp_module/getIndividualUsersDataNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'user_id': user_id, 'dist': $('#district_chart').find(":selected").val()},
+                    success: function (result) {
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+
+                    }
+                });
+            }
+            else {
+                $.ajax({
+                    url: '/hhp_module/getIndividualUsersDataNT1/',
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {'user_id': user_id},
+                    success: function (result) {
+                        var data = JSON.parse(result.data);
+                        var categories = JSON.parse(result.categories);
+                        highcharts(categories, data);
+                    }
+                });
+            }
+        }
+    </script>
+{% endblock %}
